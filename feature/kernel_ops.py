@@ -3,6 +3,7 @@
 #
 # kernel operations for the feature matching algorithm
 #
+#
 
 
 def weighted_stats(data):
@@ -92,51 +93,3 @@ def vector_median(data):
         median_vector.append(data_list[j][0])
 
     return(median_vector)
-
-
-def kernel_list(data, cutoff):
-
-    """
-    Generate the kernel map of a given input vector for the feature
-    matching tracker, and output as a list with confidence cutoff.
-
-    Parameters
-    ----------
-    data : 2-dimensional array
-        input data array. Each element contains 5 values:
-            $(x_0, y_0, x_1, y_1, \alpha)$
-        Where $(x_0, y_0)$ is the source vector, $(x_1, y_1)$ is the
-        destination vector, and $\alpha$ is the confidence value for the
-        match.
-    cutoff : float $\in (0,1)$
-        Confidence cutoff value; if $\alpha_i\alpha_j < cutoff$, the point is
-        dicarded.
-
-    Returns
-    -------
-    array
-        1-dimensional weighted kernel map with accompanying confidences.
-        For data vectors $i$ and $j$:
-            $K(i,j) = d(i_1, j_1) / d(i_0, j_0)$
-        where $i_0 = (x_0, y_0)$ and similar for $i_1$, $j_0$, $j_1$.
-    """
-
-    kernel = []
-
-    # iterate over all unique pairs, except for identity pairs
-    for i in range(len(data)):
-
-        for j in range(i + 1, len(data)):
-
-            confidence = data[i][4] * data[j][4]
-
-            if(confidence > cutoff):
-                kernel.append([
-                    ((data[i][2] - data[j][2])**2 +
-                        (data[i][3] - data[j][3])**2) /
-                    ((data[i][0] - data[j][0])**2 +
-                        (data[i][1] - data[j][1])**2),
-                    confidence
-                ])
-
-    return(kernel)

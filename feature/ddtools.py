@@ -121,7 +121,7 @@ def weighted_bin(bin_width, data, **kwargs):
     Returns
     -------
     array
-        Array containing the size of each bin.
+        Array containing the size of each bin, normalized a proportion of 1
     """
 
     # set up sorting differently depending on if weights are included
@@ -164,7 +164,7 @@ def weighted_bin(bin_width, data, **kwargs):
             current_index += 1
 
         # append to result
-        output_array.append(current_value)
+        output_array.append(current_value / total_weight)
         current_bin += bin_width
 
     return(output_array)
