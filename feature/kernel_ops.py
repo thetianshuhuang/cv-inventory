@@ -11,6 +11,7 @@
 #
 
 from numpy.linalg import norm
+import math
 
 
 def distance(x_1, x_2, **kwargs):
@@ -76,11 +77,15 @@ def weighted_stats(data):
         # update total weight
         total_weight += data["weight"][i]
 
+    if(total_weight == 0):
+        return({"mean": 0, "var": 0})
+
     mean = mean / total_weight
 
     return({
         "mean": mean,
-        "var": weighted_square / total_weight + mean**2
+        "var": weighted_square / total_weight + mean**2,
+        "total": total_weight
     })
 
 
@@ -117,10 +122,28 @@ def kernel_transform(data):
                 # take the kernel map
                 dist_ratio = (
                     distance(data["scene"][i], data["scene"][j]) /
-                    (distance(data["target"][i], data["target"][j]) + 1)
+                    distance(data["target"][i], data["target"][j])
                 )
+
                 kernel_map["data"].append(dist_ratio)
                 kernel_map["weight"].append(
                     data["weight"][i] * data["weight"][j])
 
     return(kernel_map)
+
+
+def remove_outliers(dataset, epsilon):
+
+    data, weights = zip(*sorted(zip(dataset["data"], dataset["weight"])))
+
+    total_weight = 0
+    for weight in weights:
+        total_weight += weight
+
+    current_weight = 0
+    index = 0
+    while(current_weight < total_weight * (1 - epsilon)):
+        current_weight += weights[index]
+        index += 1
+    dataset["data"] = data[:index]
+    dataset["weight"] = weights[:index]

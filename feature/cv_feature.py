@@ -11,6 +11,7 @@
 #
 
 import cv2
+import math
 
 
 def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
@@ -45,7 +46,38 @@ def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
     return(out_image)
 
 
+def sift_pdf(ratio):
+
+    """
+    Estimate the false positive probability given an input distance ratio
+    Estimated from the graph on page 20 of "Distinctive Image Features from
+    Scale-Invariant Keypoints", David G. Lowe
+
+    Parameters
+    ----------
+    ratio: float
+        Ratio of best match distance to second best match distance
+
+    Returns
+    -------
+    float: confidence
+        Probability value of that match
+    """
+
+    if(ratio < 0.3):
+        return(1)
+    elif(ratio < 0.6):
+        return(0.88 + (0.6 - ratio) * 0.4)
+    elif(ratio < 0.8):
+        return(0.3 + (0.8 - ratio) * 2.9)
+    elif(ratio < 0.9):
+        return(0.05 + (0.9 - ratio) * 2.5)
+    else:
+        return((1 - ratio) * 0.5)
+
+
 def sift_scene(img_target, img_scene, max_ratio, **kwargs):
+
     """
     Find matches of an image in a scene with SIFT and FLANN.
 
@@ -86,19 +118,20 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
     matches = flann.knnMatch(des_target, des_scene, k=2)
 
     # build return dictionary
-    match_vectors = {
-        "target": [kp_target[match[0].queryIdx].pt for match in matches],
-        "scene": [kp_scene[match[0].trainIdx].pt for match in matches],
-        "weight": [
-            (match[1].distance - match[0].distance) / match[1].distance
-            for match in matches],
-        "length": len(matches)
-    }
+    output = {"target": [], "scene": [], "weight": []}
+
+    for i in range(len(matches)):
+        output["target"].append(kp_target[matches[i][0].queryIdx].pt)
+        output["scene"].append(kp_scene[matches[i][0].trainIdx].pt)
+        output["weight"].append(
+            sift_pdf(matches[i][0].distance / matches[i][1].distance))
+
+    output["length"] = len(output["target"])
 
     # Generate output if desired
     if("plot" in kwargs and kwargs["plot"]):
         # add to dictionary
-        match_vectors["plot"] = knn_plot(
+        output["plot"] = knn_plot(
             img_target, kp_target, img_scene, kp_scene, matches, max_ratio)
 
-    return(match_vectors)
+    return(output)
