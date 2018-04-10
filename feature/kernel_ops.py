@@ -1,9 +1,43 @@
 #
 # kernel_ops.py
 #
-# kernel operations for the feature matching algorithm
+# kernel operations for a keypoint-based matching algorithm
+# Written by Tianshu Huang for cv-inventory, April 2018
 #
+# Functions
+# ---------
+# weighted_stats: compute weighted stats for a datalist
+# kernel_map: get the weighted distance kernel map
 #
+
+from numpy.linalg import norm
+
+
+def distance(x_1, x_2, **kwargs):
+
+    """
+    Compute the distance between two vectors.
+
+    Parameters
+    ----------
+    x_1, x_2 : float[]
+        Input vectors
+    ird- : float
+        Norm to compute; passed on to norm.
+
+    Returns
+    -------
+    float
+        Computed norm
+    """
+
+    assert len(x_1) == len(x_2)
+
+    difference = []
+    for i in range(len(x_1)):
+        difference.append(abs(x_1[i] - x_2[i]))
+
+    return(norm(difference, **kwargs))
 
 
 def weighted_stats(data):
@@ -12,84 +46,81 @@ def weighted_stats(data):
     Compute several statistics for a weighted data list.
     - Weighted mean
     - Weighted variance of a dataset:
-    $$Var(data) = E(X^2) + E(X)^2
+    $$Var(data) = E[(X - \mu)^2] = E(X^2) + E(X)^2
         = \frac{\sum x^2 \alpha_x}{\sum \alpha_x} +
           \left(\frac{\sum x \alpha_x}{\sum \alpha_x}\right)^2$$
 
     Parameters
     ----------
-    data : array
-        List of [value, confidence].
+    data : dict, with entries:
+        "data", float[]: input data
+        "weight", float[]: data weight
 
     Returns
     -------
-    {"mean": float, "var": float}
-        - Mean; units = scale (unitless)
-        - Weighted variance; units = px^2
+    dict, with entries:
+        "mean": float
+        "var": float
     """
 
-    # compute required terms
+    assert len(data["data"]) == len(data["weight"])
+
     mean = 0
     weighted_square = 0
     total_weight = 0
-    for value in data:
-        # update weighted sum ($\sum x \alpha_x$)
-        mean += value[0] * value[1]
-        # update weighted sum of squares ($\sum x^2 \alpha_x$)
-        weighted_square += value[0]**2 * value[1]
+    for i in range(len(data["data"])):
+        # update weighted sum
+        mean += data["data"][i] * data["weight"][i]
+        # update weighted sum of squares
+        weighted_square += data["data"][i]**2 * data["weight"][i]
         # update total weight
-        total_weight += value[1]
+        total_weight += data["weight"][i]
 
-    # return stats
+    mean = mean / total_weight
+
     return({
         "mean": mean,
-        "var": weighted_square / total_weight + (mean / total_weight)**2
+        "var": weighted_square / total_weight + mean**2
     })
 
 
-def vector_median(data):
+def kernel_transform(data):
 
     """
-    Compute the vector median of weighted data matrix data, where the last
-    element of each vector in the data matrix is the weight.
+    Get the weighted distance kernel between keypoint matches.
 
     Parameters
     ----------
-    data : array
-        Data matrix. Each element is in the form:
-            $$[x_0, x_1, [...] x_n, \alpha]$$
-        Where $\alpha$ is the weight.
+    data: dict, with entries:
+        "target": float[*][2] of target keypoint coordinates
+        "scene": float[*][2] of scene keypoint coordinates
+        "weight": confidence values
+        "length": number of entries
 
     Returns
     -------
-    array
-        Weighted median vector
+    dict, with entries:
+        "data":
+            Array containing the kernel mapping d(x_0, x_1) with
+            confidence c_1 * c_2
+        "weight":
+            Array containing weights of each value
     """
 
-    # We assume that the data matrix is rectangular
-    dimension = len(data[0]) - 1
-    median_vector = []
+    kernel_map = {"data": [], "weight": []}
+    for i in range(data["length"]):
+        for j in range(i + 1, data["length"]):
+            # filter out points mapped to multiple other points
+            if(data["scene"][i] != data["scene"][j] and
+               data["target"][i] != data["target"][j]):
 
-    # Get total weight
-    total_weight = 0
-    for vector in data:
-        total_weight += data[-1]
+                # take the kernel map
+                dist_ratio = (
+                    distance(data["scene"][i], data["scene"][j]) /
+                    (distance(data["target"][i], data["target"][j]) + 1)
+                )
+                kernel_map["data"].append(dist_ratio)
+                kernel_map["weight"].append(
+                    data["weight"][i] * data["weight"][j])
 
-    # iterate over every column
-    for i in range(dimension):
-
-        # assemble a combined list indexed by the data
-        data_list = [[x[i], x[-1]] for x in data]
-        data_list.sort()
-
-        # add weight until the median is reached
-        cumulative_weight = 0
-        j = 0
-        while(cumulative_weight < total_weight / 2):
-            cumulative_weight += data_list[j][0]
-            j += 1
-
-        # append median
-        median_vector.append(data_list[j][0])
-
-    return(median_vector)
+    return(kernel_map)

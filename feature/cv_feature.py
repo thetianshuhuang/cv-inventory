@@ -2,7 +2,7 @@
 # cv_feature.py
 #
 # Opencv-based feature detection tools
-# Written by Tianshu Huang for cv-inventory
+# Written by Tianshu Huang for cv-inventory, April 2018
 #
 # Functions
 # ---------
@@ -11,7 +11,6 @@
 #
 
 import cv2
-from ddtools import ddistance, gaussian_convolve, weighted_bin
 
 
 def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
@@ -86,21 +85,14 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
     # get best two matches, return as array of array of best matches
     matches = flann.knnMatch(des_target, des_scene, k=2)
 
-    # Run ratio test
-    output = [
-        [best, second]
-        for i, (best, second) in enumerate(matches)
-        if best.distance < max_ratio * second.distance
-    ]
-
     # build return dictionary
     match_vectors = {
-        "target": [kp_target[match[0].queryIdx].pt for match in output],
-        "scene": [kp_scene[match[0].trainIdx].pt for match in output],
-        "weights": [
-            match[0].distance * match[0].distance / match[1].distance
-            for match in output],
-        "length": len(output)
+        "target": [kp_target[match[0].queryIdx].pt for match in matches],
+        "scene": [kp_scene[match[0].trainIdx].pt for match in matches],
+        "weight": [
+            (match[1].distance - match[0].distance) / match[1].distance
+            for match in matches],
+        "length": len(matches)
     }
 
     # Generate output if desired
@@ -110,59 +102,3 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
             img_target, kp_target, img_scene, kp_scene, matches, max_ratio)
 
     return(match_vectors)
-
-
-def sift_histogram(matches, bin_size, sigma, epsilon):
-
-    """
-    Generate a histogram showing the pairwise distance ratio in a set of
-    matches with bin size, convolution coefficient sigma, and tail cutoff
-    epsilon.
-
-    Parameters
-    ----------
-    matches: dict, with entries:
-        "target": target coordinates
-        "scene": scene coordinates
-        "weights": weight of each match
-        "length": number of matches
-    bin_size: float
-        Size of each bin
-    sigma: float
-        Passed to gaussian_convolve.
-    epsilon: float
-        Passed to weighted_bin
-
-    Returns
-    -------
-    float[]
-        Binned histogram
-    """
-
-    # Assemble weights and histogram from input data
-    weights = []
-    hist = []
-    for i in range(matches["length"]):
-        for j in range(i + 1, matches["length"]):
-            # filter out distance between points mapped to multiple other
-            # points
-            if(
-               matches["scene"][i] != matches["scene"][j] and
-               matches["target"][i] != matches["target"][j]):
-
-                # Take the kernel map from the input coordinates to the
-                # distance ratio
-                dist_ratio = (
-                    ddistance(matches["scene"][i], matches["scene"][j]) /
-                    (ddistance(matches["target"][i], matches["target"][j]) + 1)
-                )
-                hist.append(dist_ratio)
-                weights.append(
-                    1 / (matches["weights"][i] * matches["weights"][j]))
-
-    # return the convoluted weighted binned histogram
-    return(
-        gaussian_convolve(
-            weighted_bin(
-                bin_size, hist, weights=weights, epsilon=epsilon),
-            sigma=sigma))

@@ -5,23 +5,36 @@
 # feature identification based tracker
 #
 
-from matplotlib import pyplot as plt
 from cv_img import load_weighted
-from cv_feature import sift_scene, sift_histogram
+from cv_feature import sift_scene
+from matplotlib import pyplot as plt
+from kernel_ops import weighted_stats, kernel_transform
 
-if(__name__ == "__main__"):
 
-    images = load_weighted([
-        "reference/target2x0.5.jpg",
-        "reference/scene2x0.125.jpg"],
-        1)
+def find_target(target, scene):
+
+    images = load_weighted([target, scene], 1)
 
     match_vectors = sift_scene(
         images[0][0],
         images[1][0],
-        0.9, plot=True)
+        0.8, plot=True)
 
+    kernel_map = kernel_transform(match_vectors)
+
+    print(weighted_stats(kernel_map))
     plt.imshow(match_vectors["plot"]), plt.show()
 
-    plt.plot(sift_histogram(match_vectors, 0.01, 20, 0.2))
+    plt.hist(kernel_map["data"], weights=kernel_map["weight"], bins=100)
     plt.show()
+
+
+if(__name__ == "__main__"):
+
+    find_target(
+        "reference/scene-wire/tx0.25.jpg",
+        "reference/scene-wire/rx0.125.jpg")
+
+    find_target(
+        "reference/scene-wire/tx0.25.jpg",
+        "reference/scene-nano/rx0.125.jpg")

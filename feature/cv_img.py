@@ -2,7 +2,7 @@
 # cv_img.py
 #
 # Opencv-based image manipulation tools
-# Written by Tianshu Huang for cv-inventory
+# Written by Tianshu Huang for cv-inventory, April 2018
 #
 # Functions
 # ---------
