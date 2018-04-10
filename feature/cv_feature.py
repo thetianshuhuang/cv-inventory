@@ -2,74 +2,48 @@
 # cv_feature.py
 #
 # Opencv-based feature detection tools
-# Written Tianshu Huang for the Tracker Synergy project and the Computer
-# Vision Inventory Management system
+# Written by Tianshu Huang for cv-inventory
 #
 # Functions
 # ---------
-# weighted_grayscale: get a weighted grayscale image
-# image_k_means: find the k most prominent colors in an image
+# knn_plot: generate visual plot for sift_scene if desired
 # sift_scene: search for matches in an image with SIFT and FLANN
 #
 
-import numpy as np
 import cv2
+from ddtools import ddistance, gaussian_convolve, weighted_bin
 
 
-def weighted_grayscale(image, weight):
+def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
 
     """
-    Get a weighted grayscale image.
+    Generate a visual plot of opencv KNN matches.
 
     Parameters
     ----------
-    image : np.array
-        Input BGR image
-    weight : array
-        [B,G,R] weights
-
-    Returns
-    -------
-    np.array
-        Weighted grayscale image
+    img_target, kp_target, img_scene, kp_scene, matches
+        Passthrough to cv2.drawMatchesKnn
+    max_ratio
+        Maximum ratio between best and second best matches to draw
     """
 
-    weight = [x * 255 / max(weight) for x in weight]
-    split_image = cv2.split(image)
-    return(np.uint8(
-        split_image[0] * (weight[0] / 255.) / 3 +
-        split_image[1] * (weight[1] / 255.) / 3 +
-        split_image[2] * (weight[2] / 255.) / 3
-    ))
+    # Need to draw only good matches, so create a mask
+    matchesMask = [[0, 0] for i in xrange(len(matches))]
+    for i, (best, second) in enumerate(matches):
+        # Mirror the Ratio Test
+        if(best.distance < max_ratio * second.distance):
+            matchesMask[i] = [1, 0]
+    # configure pyplot
+    draw_params = dict(matchColor=(0, 255, 0),
+                       singlePointColor=(255, 0, 0),
+                       matchesMask=matchesMask,
+                       flags=0)
+    # generate output image
+    out_image = cv2.drawMatchesKnn(
+        img_target, kp_target, img_scene, kp_scene,
+        matches, None, **draw_params)
 
-
-def image_k_means(image, k):
-
-    """
-    Get dominant colors from a target image.
-
-    Parameters
-    ----------
-    image : np.array
-        Input BGR image
-    k : int
-        Number of colors to extract
-
-    Returns
-    -------
-    array
-        List of [B,G,R] tuples representing the K dominant colors.
-    """
-
-    array = np.copy(image).reshape((-1, 3))
-    array = np.float32(array)
-    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
-    ret, label, center = cv2.kmeans(
-        array, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
-
-    center = np.uint8(center)
-
-    return(center)
+    return(out_image)
 
 
 def sift_scene(img_target, img_scene, max_ratio, **kwargs):
@@ -131,22 +105,64 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
 
     # Generate output if desired
     if("plot" in kwargs and kwargs["plot"]):
-        # Need to draw only good matches, so create a mask
-        matchesMask = [[0, 0] for i in xrange(len(matches))]
-        for i, (best, second) in enumerate(matches):
-            # Mirror the Ratio Test
-            if(best.distance < max_ratio * second.distance):
-                matchesMask[i] = [1, 0]
-        # configure pyplot
-        draw_params = dict(matchColor=(0, 255, 0),
-                           singlePointColor=(255, 0, 0),
-                           matchesMask=matchesMask,
-                           flags=0)
-        # generate output image
-        out_image = cv2.drawMatchesKnn(
-            img_target, kp_target, img_scene, kp_scene,
-            matches, None, **draw_params)
         # add to dictionary
-        match_vectors["plot"] = out_image
+        match_vectors["plot"] = knn_plot(
+            img_target, kp_target, img_scene, kp_scene, matches, max_ratio)
 
     return(match_vectors)
+
+
+def sift_histogram(matches, bin_size, sigma, epsilon):
+
+    """
+    Generate a histogram showing the pairwise distance ratio in a set of
+    matches with bin size, convolution coefficient sigma, and tail cutoff
+    epsilon.
+
+    Parameters
+    ----------
+    matches: dict, with entries:
+        "target": target coordinates
+        "scene": scene coordinates
+        "weights": weight of each match
+        "length": number of matches
+    bin_size: float
+        Size of each bin
+    sigma: float
+        Passed to gaussian_convolve.
+    epsilon: float
+        Passed to weighted_bin
+
+    Returns
+    -------
+    float[]
+        Binned histogram
+    """
+
+    # Assemble weights and histogram from input data
+    weights = []
+    hist = []
+    for i in range(matches["length"]):
+        for j in range(i + 1, matches["length"]):
+            # filter out distance between points mapped to multiple other
+            # points
+            if(
+               matches["scene"][i] != matches["scene"][j] and
+               matches["target"][i] != matches["target"][j]):
+
+                # Take the kernel map from the input coordinates to the
+                # distance ratio
+                dist_ratio = (
+                    ddistance(matches["scene"][i], matches["scene"][j]) /
+                    (ddistance(matches["target"][i], matches["target"][j]) + 1)
+                )
+                hist.append(dist_ratio)
+                weights.append(
+                    1 / (matches["weights"][i] * matches["weights"][j]))
+
+    # return the convoluted weighted binned histogram
+    return(
+        gaussian_convolve(
+            weighted_bin(
+                bin_size, hist, weights=weights, epsilon=epsilon),
+            sigma=sigma))

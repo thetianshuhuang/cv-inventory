@@ -2,14 +2,14 @@
 # ddtools.py
 #
 # tools for manipulation of discrete distributions
-# Written by Tianshu Huang for the Tracker Synergy project and the Computer
-# Vision Inventory Management system
+# Written by Tianshu Huang for cv-inventory
 #
 # Functions
 # ---------
 # dnorm: discrete Lp norm ||x||_p
 # ddistance: distance on a vector space ||x-y||_p
 # gaussian_convolute: discrete convolution \int gaussian(x-y) * input[y] dx
+# weighted_bin: turn arrays of data and weights into a binned histogram
 #
 
 from math import pow, pi
