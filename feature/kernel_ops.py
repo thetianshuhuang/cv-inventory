@@ -6,12 +6,12 @@
 #
 # Functions
 # ---------
+# distance: norm between two vectors
 # weighted_stats: compute weighted stats for a datalist
-# kernel_map: get the weighted distance kernel map
+# kernel_transform: get the weighted distance kernel map
 #
 
 from numpy.linalg import norm
-import math
 
 
 def distance(x_1, x_2, **kwargs):

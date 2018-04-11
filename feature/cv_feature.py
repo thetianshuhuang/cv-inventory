@@ -11,7 +11,6 @@
 #
 
 import cv2
-import math
 
 
 def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
