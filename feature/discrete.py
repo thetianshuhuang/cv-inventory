@@ -101,7 +101,7 @@ def weighted_bin(bin_width, data, **kwargs):
             current_index += 1
 
         # append to result
-        output_array.append(current_value / total_weight)
+        output_array.append(current_value)
         current_bin += bin_width
 
     return(output_array)

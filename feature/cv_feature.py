@@ -11,6 +11,7 @@
 #
 
 import cv2
+import numpy as np
 
 
 def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
@@ -75,7 +76,7 @@ def sift_pdf(ratio):
         return((1 - ratio) * 0.5)
 
 
-def sift_scene(img_target, img_scene, max_ratio, **kwargs):
+def sift_scene(img_target, img_scene, **kwargs):
 
     """
     Find matches of an image in a scene with SIFT and FLANN.
@@ -86,9 +87,11 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
         Input single channel reference image
     img_scene : np.array
         Scene to find the target in
-    max_ratio : float
+    max_ratio= : float
         Maximum ratio between best match and second match distances;
         matches with a higher ratio are discarded
+    ratio_draw= : float
+        Maximum ratio for points to be drawn
     plot= : bool
         Returns output plot if set to True
 
@@ -101,6 +104,16 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
         "length": number of matches
         "output": optional; matplotlib output
     """
+
+    # set defaults
+    if "max_ratio" not in kwargs:
+        max_ratio = 1
+    else:
+        max_ratio = kwargs["max_ratio"]
+    if "ratio_draw" not in kwargs:
+        ratio_draw = 0.8
+    else:
+        ratio_draw = kwargs["ratio_draw"]
 
     # Initialize and run SIFT
     sift = cv2.xfeatures2d.SIFT_create()
@@ -116,21 +129,29 @@ def sift_scene(img_target, img_scene, max_ratio, **kwargs):
     # get best two matches, return as array of array of best matches
     matches = flann.knnMatch(des_target, des_scene, k=2)
 
-    # build return dictionary
-    output = {"target": [], "scene": [], "weight": []}
+    # apply ratio test
+    target = []
+    scene = []
+    weight = []
+    for match in matches:
+        ratio = match[0].distance / match[1].distance
+        if(ratio < max_ratio):
+            target.append(kp_target[match[0].queryIdx].pt)
+            scene.append(kp_scene[match[0].trainIdx].pt)
+            weight.append(sift_pdf(ratio))
 
-    for i in range(len(matches)):
-        output["target"].append(kp_target[matches[i][0].queryIdx].pt)
-        output["scene"].append(kp_scene[matches[i][0].trainIdx].pt)
-        output["weight"].append(
-            sift_pdf(matches[i][0].distance / matches[i][1].distance))
-
-    output["length"] = len(output["target"])
+    # build output dictionary
+    output = {
+        "target": np.asarray(target),
+        "scene": np.asarray(scene),
+        "weight": np.asarray(weight),
+        "length": len(matches)
+    }
 
     # Generate output if desired
     if("plot" in kwargs and kwargs["plot"]):
         # add to dictionary
         output["plot"] = knn_plot(
-            img_target, kp_target, img_scene, kp_scene, matches, max_ratio)
+            img_target, kp_target, img_scene, kp_scene, matches, ratio_draw)
 
     return(output)

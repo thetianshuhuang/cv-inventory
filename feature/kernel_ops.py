@@ -6,39 +6,11 @@
 #
 # Functions
 # ---------
-# distance: norm between two vectors
 # weighted_stats: compute weighted stats for a datalist
 # kernel_transform: get the weighted distance kernel map
 #
 
-from numpy.linalg import norm
-
-
-def distance(x_1, x_2, **kwargs):
-
-    """
-    Compute the distance between two vectors.
-
-    Parameters
-    ----------
-    x_1, x_2 : float[]
-        Input vectors
-    ird- : float
-        Norm to compute; passed on to norm.
-
-    Returns
-    -------
-    float
-        Computed norm
-    """
-
-    assert len(x_1) == len(x_2)
-
-    difference = []
-    for i in range(len(x_1)):
-        difference.append(abs(x_1[i] - x_2[i]))
-
-    return(norm(difference, **kwargs))
+import numpy as np
 
 
 def weighted_stats(data):
@@ -84,7 +56,7 @@ def weighted_stats(data):
 
     return({
         "mean": mean,
-        "var": weighted_square / total_weight + mean**2,
+        "var": weighted_square / total_weight - mean**2,
         "total": total_weight
     })
 
@@ -115,14 +87,17 @@ def kernel_transform(data):
     kernel_map = {"data": [], "weight": []}
     for i in range(data["length"]):
         for j in range(i + 1, data["length"]):
-            # filter out points mapped to multiple other points
-            if(data["scene"][i] != data["scene"][j] and
-               data["target"][i] != data["target"][j]):
 
+            # filter out points mapped to multiple other points
+            a_duplicate = (
+                np.array_equal(data["scene"][i], data["scene"][j]) or
+                np.array_equal(data["target"][i], data["target"][j]))
+
+            if(not a_duplicate):
                 # take the kernel map
                 dist_ratio = (
-                    distance(data["scene"][i], data["scene"][j]) /
-                    distance(data["target"][i], data["target"][j])
+                    np.linalg.norm(data["scene"][i] - data["scene"][j]) /
+                    np.linalg.norm(data["target"][i] - data["target"][j])
                 )
 
                 kernel_map["data"].append(dist_ratio)
