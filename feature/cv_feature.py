@@ -4,7 +4,7 @@
 # Opencv-based feature detection tools
 # Written by Tianshu Huang for cv-inventory, April 2018
 #
-# Functions
+# Functionsdatadata
 # ---------
 # knn_plot: generate visual plot for sift_scene if desired
 # sift_scene: search for matches in an image with SIFT and FLANN
@@ -145,7 +145,7 @@ def sift_scene(img_target, img_scene, **kwargs):
         "target": np.asarray(target),
         "scene": np.asarray(scene),
         "weight": np.asarray(weight),
-        "length": len(matches)
+        "length": len(weight)
     }
 
     # Generate output if desired

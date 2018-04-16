@@ -8,29 +8,63 @@
 from cv_img import load_weighted
 from cv_feature import sift_scene
 from matplotlib import pyplot as plt
-from kernel_ops import weighted_stats, kernel_transform, remove_outliers
+from kernel_ops import weighted_stats, kernel_transform, remove_outliers, clustering_stats
 from discrete import gaussian_convolve, weighted_bin
 from kmeans import kmeans
 
 import numpy as np
 
 
-def gaussian_max(data, sigma):
-    size = np.argmax(
-        gaussian_convolve(
-            weighted_bin(
-                1. / sigma, data["data"],
-                weights=data["weight"], epsilon=0),
-            sigma)
-    )
-    return(1.0 * (size - sigma) / sigma)
+def is_match(target, scene, **kwargs):
 
+    # Assign default settings
+    if("debug" in kwargs and kwargs["debug"]):
+        debug_plot = True
+    else:
+        debug_plot = False
+    if("sigma" in kwargs):
+        sigma = kwargs["sigma"]
+    else:
+        sigma = 100
+    if("max_ratio" in kwargs):
+        max_ratio = kwargs["max_ratio"]
+    else:
+        max_ratio = 1.0
+    if("outliers" in kwargs):
+        outliers = kwargs["epsilon"]
+    else:
+        outliers = 0.2
 
-def integral_in_range(data, left, right):
-    total = 0.
-    for i in range(left, right):
-        total += data[i]
-    return(total)
+    # find matches
+    matches = sift_scene(target, scene, max_ratio=max_ratio, plot=debug_plot)
+
+    # get kernel
+    kernel_list = kernel_transform(matches)
+    remove_outliers(kernel_list, outliers)
+
+    # compute statistics
+    stats = weighted_stats(kernel_list)
+    stats.update(clustering_stats(kernel_list, sigma))
+
+    # Show debug plots
+    if(debug_plot):
+        # Image
+        plt.imshow(matches["plot"]), plt.show()
+        # Raw histogram
+        plt.hist(kernel_list["data"], weights=kernel_list["weight"], bins=100)
+        plt.show()
+        # Gaussian convolve
+        plt.plot(
+            gaussian_convolve(
+                weighted_bin(
+                    1. / sigma,
+                    kernel_list["data"],
+                    weights=kernel_list["weight"],
+                    epsilon=0),
+                sigma))
+        plt.show()
+
+    return(stats)
 
 
 def find_targets(target, scene, roi_size):
@@ -41,64 +75,23 @@ def find_targets(target, scene, roi_size):
         max_ratio=0.8, plot=True)
 
     means = kmeans(matches["scene"], 3, weights=matches["weight"])
-    print(means)
+    print(means["weights"])
+    print(means["means"])
 
     # Plot the data
     plt.imshow(matches["plot"])
     plt.show()
 
-    for index, center in enumerate(means["means"]):
+    center = means["means"][0]
 
-        roi = scene[
-            int(center[1] - roi_size):int(center[1] + roi_size),
-            int(center[0] - roi_size):int(center[0] + roi_size)]
+    roi = scene[
+        int(center[1] - roi_size):int(center[1] + roi_size),
+        int(center[0] - roi_size):int(center[0] + roi_size)]
 
-        if(roi_size > 200):
-            find_targets(target, roi, roi_size / 2)
-        else:
-            find_target(target, roi)
-
-
-def find_target(target, scene):
-
-    sigma = 100
-
-    match_vectors = sift_scene(target, scene, ratio=1, plot=True)
-
-    kernel_list = kernel_transform(match_vectors)
-
-    center = gaussian_max(kernel_list, sigma)
-    print("Gaussian Maximum: " + str(center))
-    remove_outliers(kernel_list, 0.2)
-    stats = weighted_stats(kernel_list)
-    print("Weighted Stats:")
-    print(stats)
-
-    hist = weighted_bin(
-        1. / sigma,
-        kernel_list["data"],
-        weights=kernel_list["weight"],
-        epsilon=0)
-    inrange = integral_in_range(
-        hist,
-        int(0.5 * sigma * center),
-        int(1.5 * sigma * center))
-    print(0.5 * sigma * center)
-    print(1.5 * sigma * center)
-    print("Total in range:")
-    print(inrange)
-
-    confidence = 1 - (1.0 / inrange)
-    print("Confidence:")
-    print(confidence)
-
-    plt.imshow(match_vectors["plot"]), plt.show()
-
-    #plt.hist(kernel_list["data"], weights=kernel_list["weight"], bins=100)
-    #plt.show()
-
-    #plt.plot(gaussian_convolve(hist, sigma))
-    #plt.show()
+    if(roi_size > 200):
+        find_targets(target, roi, roi_size / 2)
+    else:
+        is_match(target, roi)
 
 
 if(__name__ == "__main__"):
@@ -107,18 +100,7 @@ if(__name__ == "__main__"):
     scene_pass = "reference/scene-wire/wide.jpg"
     scene_fail = "reference/scene-nano/sx1.jpg"
 
-    images = load_weighted([target, scene_pass], 1)
+    images = load_weighted([target, scene_pass, scene_fail], 1)
 
-    find_targets(images[0][0], images[1][0], 400)
-    # find_targets(target, scene_fail)
-
-    # images = load_weighted([target, scene], 1)
-
-    # find_target(images[0][0], images[1][0])
-
-    # find_target(
-    #    "reference/scene-wire/tx0.5.jpg",
-    #    "reference/scene-wire/rx0.125.jpg")
-    # find_target(
-    #    "reference/scene-wire/tx0.5.jpg",
-    #    "reference/scene-nano/rx0.125.jpg")
+    stats = is_match(images[0][0], images[1][0], debug=True)
+    print(stats)

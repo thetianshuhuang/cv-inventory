@@ -7,6 +7,7 @@
 # Functions
 # ---------
 # gaussian_convolute: discrete convolution \int gaussian(x-y) * input[y] dx
+# integral_in_range: integral of an input range between two indices
 # weighted_bin: turn arrays of data and weights into a binned histogram
 #
 
@@ -18,12 +19,14 @@ def gaussian_convolve(input, sigma):
 
     """
     Compute a gaussian convolution with a given sigma value.
+
     Parameters
     ----------
     input : float[]
         Input array
     sigma : float
         Sigma value to use for the gaussian
+
     Returns
     -------
     float[]
@@ -40,10 +43,37 @@ def gaussian_convolve(input, sigma):
     return(convolve(input, gaussian, mode="full"))
 
 
+def integral_in_range(data, left, right):
+
+    """
+    Get the integral of the dataset data between indices left and right.
+
+    Parameters
+    ----------
+    data : float[]
+        Input data set
+    left : int
+        Left index
+    right : int
+        Right index
+
+    Returns
+    -------
+    float
+        Integral from left to right of data
+    """
+
+    total = 0.
+    for i in range(left, right):
+        total += data[i]
+    return(total)
+
+
 def weighted_bin(bin_width, data, **kwargs):
 
     """
     Split the data into discrete bins.
+
     Parameters
     ----------
     bin_width : float
@@ -55,6 +85,7 @@ def weighted_bin(bin_width, data, **kwargs):
     epsilon= : float
         All except epsilon of the data will be contained;
         the rest will be truncated
+
     Returns
     -------
     array

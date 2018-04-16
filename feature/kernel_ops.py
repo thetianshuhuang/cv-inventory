@@ -8,9 +8,12 @@
 # ---------
 # weighted_stats: compute weighted stats for a datalist
 # kernel_transform: get the weighted distance kernel map
+# remove_outliers: remove the largest epsilon outliers from the dataset
+# clustering_stats: compute clustering related statistics
 #
 
 import numpy as np
+from discrete import gaussian_convolve, weighted_bin, integral_in_range
 
 
 def weighted_stats(data):
@@ -109,16 +112,72 @@ def kernel_transform(data):
 
 def remove_outliers(dataset, epsilon):
 
+    """
+    Remove the epsilon greatest outliers from an input array.
+
+    Parameters
+    ----------
+    dataset : dict, with entries:
+        data: float[], input dataset
+        weights: float[], weight of each datapoint
+    epsilon : amount of data to remove
+
+    Returns
+    -------
+    dict
+        Dataset, with outliers removed
+    """
+
     data, weights = zip(*sorted(zip(dataset["data"], dataset["weight"])))
 
+    # get total weight
     total_weight = 0
     for weight in weights:
         total_weight += weight
 
+    # iterate until only epsilon remains
     current_weight = 0
     index = 0
     while(current_weight < total_weight * (1 - epsilon)):
         current_weight += weights[index]
         index += 1
+
+    # rebuild dictionary
     dataset["data"] = data[:index]
     dataset["weight"] = weights[:index]
+    return(dataset)
+
+
+def clustering_stats(data, sigma):
+
+    """
+    Compute statistics related to clustering in a dataset.
+
+    Parameters
+    ----------
+    data : dict
+        Input dataset
+    sigma: float
+        Coefficient to use
+
+    Returns
+    -------
+    dict, with entries:
+        "center": gaussian maximum with coefficient sigma
+        "in_range": integral from center/2 to 3*center/3
+    """
+
+    hist = weighted_bin(
+        1. / sigma, data["data"], weights=data["weight"], epsilon=0)
+
+    center = 1.0 * (np.argmax(gaussian_convolve(hist, sigma)) - sigma) / sigma
+    in_range = integral_in_range(
+        hist,
+        int(0.5 * sigma * center),
+        int(1.5 * sigma * center))
+
+    return({
+        "center": center,
+        "in_range": in_range,
+        "confidence": 1. - (1.0 / in_range)
+    })
