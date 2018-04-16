@@ -16,6 +16,11 @@ import numpy as np
 from discrete import gaussian_convolve, weighted_bin, integral_in_range
 
 
+# -----------------------------------------------------------------------------
+#
+# weighted_stats
+#
+# -----------------------------------------------------------------------------
 def weighted_stats(data):
 
     """
@@ -64,6 +69,11 @@ def weighted_stats(data):
     })
 
 
+# -----------------------------------------------------------------------------
+#
+# kernel_transform
+#
+# -----------------------------------------------------------------------------
 def kernel_transform(data):
 
     """
@@ -110,6 +120,11 @@ def kernel_transform(data):
     return(kernel_map)
 
 
+# -----------------------------------------------------------------------------
+#
+# remove_outliers
+#
+# -----------------------------------------------------------------------------
 def remove_outliers(dataset, epsilon):
 
     """
@@ -148,6 +163,11 @@ def remove_outliers(dataset, epsilon):
     return(dataset)
 
 
+# -----------------------------------------------------------------------------
+#
+# clustering_stats
+#
+# -----------------------------------------------------------------------------
 def clustering_stats(data, sigma):
 
     """
@@ -179,5 +199,4 @@ def clustering_stats(data, sigma):
     return({
         "center": center,
         "in_range": in_range,
-        "confidence": 1. - (1.0 / in_range)
     })

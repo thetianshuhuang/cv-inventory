@@ -15,6 +15,11 @@ from math import pow, pi
 from numpy import convolve, exp
 
 
+# -----------------------------------------------------------------------------
+#
+# gaussian_convolve
+#
+# -----------------------------------------------------------------------------
 def gaussian_convolve(input, sigma):
 
     """
@@ -43,6 +48,11 @@ def gaussian_convolve(input, sigma):
     return(convolve(input, gaussian, mode="full"))
 
 
+# -----------------------------------------------------------------------------
+#
+# integral_in_range
+#
+# -----------------------------------------------------------------------------
 def integral_in_range(data, left, right):
 
     """
@@ -64,11 +74,18 @@ def integral_in_range(data, left, right):
     """
 
     total = 0.
+    left = max(0, left)
+    right = min(len(data), right)
     for i in range(left, right):
         total += data[i]
     return(total)
 
 
+# -----------------------------------------------------------------------------
+#
+# weighted_bin
+#
+# -----------------------------------------------------------------------------
 def weighted_bin(bin_width, data, **kwargs):
 
     """

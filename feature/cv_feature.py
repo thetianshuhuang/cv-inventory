@@ -4,9 +4,10 @@
 # Opencv-based feature detection tools
 # Written by Tianshu Huang for cv-inventory, April 2018
 #
-# Functionsdatadata
+# Functions
 # ---------
 # knn_plot: generate visual plot for sift_scene if desired
+# sift_pdf: get the confidence value corresponding to a ratio
 # sift_scene: search for matches in an image with SIFT and FLANN
 #
 
@@ -14,6 +15,11 @@ import cv2
 import numpy as np
 
 
+# -----------------------------------------------------------------------------
+#
+# knn_plot
+#
+# -----------------------------------------------------------------------------
 def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
 
     """
@@ -46,6 +52,11 @@ def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
     return(out_image)
 
 
+# -----------------------------------------------------------------------------
+#
+# sift_pdf
+#
+# -----------------------------------------------------------------------------
 def sift_pdf(ratio):
 
     """
@@ -76,6 +87,11 @@ def sift_pdf(ratio):
         return((1 - ratio) * 0.5)
 
 
+# -----------------------------------------------------------------------------
+#
+# sift_scene
+#
+# -----------------------------------------------------------------------------
 def sift_scene(img_target, img_scene, **kwargs):
 
     """

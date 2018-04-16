@@ -8,99 +8,144 @@
 from cv_img import load_weighted
 from cv_feature import sift_scene
 from matplotlib import pyplot as plt
-from kernel_ops import weighted_stats, kernel_transform, remove_outliers, clustering_stats
+import kernel_ops
 from discrete import gaussian_convolve, weighted_bin
 from kmeans import kmeans
 
-import numpy as np
+
+# -----------------------------------------------------------------------------
+#
+# matches_plot
+#
+# -----------------------------------------------------------------------------
+def matches_plot(matches, kernel, sigma):
+
+    """
+    Generate plots visualizing matches and clustering
+    (utility function for find_match)
+
+    Parameters
+    ----------
+    matches : dict
+        matches to plot
+    kernel : dict
+        kernel, with weights
+    sigma : float
+        coefficient for convolution
+    """
+
+    # Image
+    plt.imshow(matches["plot"]), plt.show()
+    # Raw histogram
+    plt.hist(kernel["data"], weights=kernel["weight"], bins=100)
+    plt.show()
+    # Gaussian convolve
+    plt.plot(gaussian_convolve(
+        weighted_bin(
+            1. / sigma, kernel["data"],
+            weights=kernel["weight"], epsilon=0),
+        sigma))
+    plt.show()
 
 
-def is_match(target, scene, **kwargs):
+# -----------------------------------------------------------------------------
+#
+# find_match
+#
+# -----------------------------------------------------------------------------
+def find_match(target, scene, **kwargs):
 
-    # Assign default settings
-    if("debug" in kwargs and kwargs["debug"]):
-        debug_plot = True
-    else:
-        debug_plot = False
-    if("sigma" in kwargs):
-        sigma = kwargs["sigma"]
-    else:
-        sigma = 100
-    if("max_ratio" in kwargs):
-        max_ratio = kwargs["max_ratio"]
-    else:
-        max_ratio = 1.0
-    if("outliers" in kwargs):
-        outliers = kwargs["epsilon"]
-    else:
-        outliers = 0.2
+    """
+    Recursively find a match for a target image using a greedy search
+    algorithm.
+
+    Parameters
+    ----------
+    target : np.array
+        Single channel input image array
+    scene : np.array
+        Single channel scene to search in
+    debug= : bool
+        Show debug images and plots
+    sigma= : int
+        Constant to use for convolutions
+    max_ratio= : float
+        Maximum ratio for matches to be considered;
+        smaller ratio -> higher confidence
+    outliers= : float
+        Proportion of outliers to be ignored
+    iteration= : int
+        Maximum number of iterations
+    scale_factor= : 3
+        Factor by which the search area narrows each iteration
+    """
+
+    # Assign defualts
+    settings = {
+        "debug": False,
+        "sigma": 100,
+        "max_ratio": 1.0,
+        "outliers": 0.2,
+        "iteration": 3,
+        "scale_factor": 3,
+        "iterations_used": 1
+    }
+    settings.update(kwargs)
 
     # find matches
-    matches = sift_scene(target, scene, max_ratio=max_ratio, plot=debug_plot)
+    matches = sift_scene(
+        target, scene, max_ratio=settings["max_ratio"], plot=settings["debug"])
 
     # get kernel
-    kernel_list = kernel_transform(matches)
-    remove_outliers(kernel_list, outliers)
+    kernel_list = kernel_ops.remove_outliers(
+        kernel_ops.kernel_transform(matches), settings["outliers"])
 
     # compute statistics
-    stats = weighted_stats(kernel_list)
-    stats.update(clustering_stats(kernel_list, sigma))
+    stats = kernel_ops.weighted_stats(kernel_list)
+    stats.update(kernel_ops.clustering_stats(kernel_list, settings["sigma"]))
+    confidence = 1 - pow(1.12, -1 * (stats["in_range"]))
+    stats.update({"confidence": confidence})
 
     # Show debug plots
-    if(debug_plot):
-        # Image
-        plt.imshow(matches["plot"]), plt.show()
-        # Raw histogram
-        plt.hist(kernel_list["data"], weights=kernel_list["weight"], bins=100)
-        plt.show()
-        # Gaussian convolve
-        plt.plot(
-            gaussian_convolve(
-                weighted_bin(
-                    1. / sigma,
-                    kernel_list["data"],
-                    weights=kernel_list["weight"],
-                    epsilon=0),
-                sigma))
-        plt.show()
+    if(settings["debug"]):
+        matches_plot(matches, kernel_list, settings["sigma"])
 
+    # refine search if necessary
+    if(stats["center"] * max(target.shape) * 2 < max(scene.shape) and
+       settings["iteration"] > 0):
+
+        # Assemble new ROI
+        means = kmeans(matches["scene"], 3, weights=matches["weight"])
+        roi_center = means["means"][0]
+        roi_size = max(scene.shape) / (settings["scale_factor"] * 2)
+        roi = scene[
+            int(roi_center[1] - roi_size):int(roi_center[1] + roi_size),
+            int(roi_center[0] - roi_size):int(roi_center[0] + roi_size)]
+
+        # Call recursion
+        settings["iteration"] -= 1
+        settings["iterations_used"] += 1
+        stats = find_match(target, roi, **settings)
+
+    stats.update({"iterations_used": settings["iterations_used"]})
     return(stats)
 
 
-def find_targets(target, scene, roi_size):
-
-    matches = sift_scene(
-        target,
-        scene,
-        max_ratio=0.8, plot=True)
-
-    means = kmeans(matches["scene"], 3, weights=matches["weight"])
-    print(means["weights"])
-    print(means["means"])
-
-    # Plot the data
-    plt.imshow(matches["plot"])
-    plt.show()
-
-    center = means["means"][0]
-
-    roi = scene[
-        int(center[1] - roi_size):int(center[1] + roi_size),
-        int(center[0] - roi_size):int(center[0] + roi_size)]
-
-    if(roi_size > 200):
-        find_targets(target, roi, roi_size / 2)
-    else:
-        is_match(target, roi)
-
-
+# -----------------------------------------------------------------------------
+#
+# tests
+#
+# -----------------------------------------------------------------------------
+# 'python feature.py' to run tests
 if(__name__ == "__main__"):
 
     target = "reference/scene-wire/tx0.5.jpg"
     scene_pass = "reference/scene-wire/wide.jpg"
+    scene_pass_2 = "reference/scene-wire/sx1.jpg"
     scene_fail = "reference/scene-nano/sx1.jpg"
 
-    images = load_weighted([target, scene_pass, scene_fail], 1)
+    images = load_weighted([target, scene_pass, scene_pass_2, scene_fail], 1)
 
-    stats = is_match(images[0][0], images[1][0], debug=True)
-    print(stats)
+    for image in images[1:]:
+        stats = find_match(images[0][0], image[0], debug=True, scale_factor=3)
+        print(stats)
