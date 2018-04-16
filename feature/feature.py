@@ -103,7 +103,8 @@ def find_match(target, scene, **kwargs):
     # compute statistics
     stats = kernel_ops.weighted_stats(kernel_list)
     stats.update(kernel_ops.clustering_stats(kernel_list, settings["sigma"]))
-    confidence = 1 - pow(1.12, -1 * (stats["in_range"]))
+    confidence = 1 - pow(
+        1.15, -1 * (stats["in_range"]**2 / (stats["total"])))
     stats.update({"confidence": confidence})
 
     # Show debug plots
@@ -140,12 +141,32 @@ def find_match(target, scene, **kwargs):
 if(__name__ == "__main__"):
 
     target = "reference/scene-wire/tx0.5.jpg"
+    target_2 = "reference/scene-nano/tx0.25.jpg"
     scene_pass = "reference/scene-wire/wide.jpg"
     scene_pass_2 = "reference/scene-wire/sx1.jpg"
     scene_fail = "reference/scene-nano/sx1.jpg"
 
+    messages = [[True, True, False], [False, False, True]]
+    true_msg = "TEST: Object in scene, should show a high confidence"
+    false_msg = "TEST: Object not in scene, should show a low confidence"
+
     images = load_weighted([target, scene_pass, scene_pass_2, scene_fail], 1)
 
-    for image in images[1:]:
-        stats = find_match(images[0][0], image[0], debug=True, scale_factor=3)
+    for i in range(1, len(images)):
+        if(messages[0][i - 1]):
+            print(true_msg)
+        else:
+            print(false_msg)
+        stats = find_match(
+            images[0][0], images[i][0], debug=False, scale_factor=3)
+        print(stats)
+
+    images = load_weighted([target_2, scene_pass, scene_pass_2, scene_fail], 1)
+    for i in range(1, len(images)):
+        if(messages[1][i - 1]):
+            print(true_msg)
+        else:
+            print(false_msg)
+        stats = find_match(
+            images[0][0], images[i][0], debug=False, scale_factor=3)
         print(stats)
