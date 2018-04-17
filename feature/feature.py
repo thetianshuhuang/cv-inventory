@@ -115,20 +115,24 @@ def find_match(target, scene, **kwargs):
     if(stats["center"] * max(target.shape) * 2 < max(scene.shape) and
        settings["iteration"] > 0):
 
-        # Assemble new ROI
+        # Crop to get new scene
         means = kmeans(matches["scene"], 3, weights=matches["weight"])
         roi_center = means["means"][0]
         roi_size = max(scene.shape) / (settings["scale_factor"] * 2)
-        roi = scene[
+        scene = scene[
             int(roi_center[1] - roi_size):int(roi_center[1] + roi_size),
             int(roi_center[0] - roi_size):int(roi_center[0] + roi_size)]
 
         # Call recursion
         settings["iteration"] -= 1
         settings["iterations_used"] += 1
-        stats = find_match(target, roi, **settings)
+        stats = find_match(target, scene, **settings)
 
-    stats.update({"iterations_used": settings["iterations_used"]})
+    # reached final iteration
+    else:
+        stats["roi"] = scene
+
+    stats["iterations_used"] = settings["iterations_used"]
     return(stats)
 
 
@@ -140,18 +144,16 @@ def find_match(target, scene, **kwargs):
 # 'python feature.py' to run tests
 if(__name__ == "__main__"):
 
-    target = "reference/scene-wire/tx0.5.jpg"
+    target_1 = "reference/scene-wire/tx0.5.jpg"
     target_2 = "reference/scene-nano/tx0.25.jpg"
-    scene_pass = "reference/scene-wire/wide.jpg"
-    scene_pass_2 = "reference/scene-wire/sx1.jpg"
-    scene_fail = "reference/scene-nano/sx1.jpg"
+    scene_1 = "reference/scene-wire/wide.jpg"
+    scene_2 = "reference/scene-nano/wide.jpg"
 
-    messages = [[True, True, False], [False, False, True]]
+    messages = [[True, True], [False, True]]
     true_msg = "TEST: Object in scene, should show a high confidence"
     false_msg = "TEST: Object not in scene, should show a low confidence"
 
-    images = load_weighted([target, scene_pass, scene_pass_2, scene_fail], 1)
-
+    images = load_weighted([target_1, scene_1, scene_2], 1)
     for i in range(1, len(images)):
         if(messages[0][i - 1]):
             print(true_msg)
@@ -160,8 +162,9 @@ if(__name__ == "__main__"):
         stats = find_match(
             images[0][0], images[i][0], debug=False, scale_factor=3)
         print(stats)
+        plt.imshow(stats["roi"], cmap="gray"), plt.show()
 
-    images = load_weighted([target_2, scene_pass, scene_pass_2, scene_fail], 1)
+    images = load_weighted([target_2, scene_1, scene_2], 1)
     for i in range(1, len(images)):
         if(messages[1][i - 1]):
             print(true_msg)
@@ -170,3 +173,4 @@ if(__name__ == "__main__"):
         stats = find_match(
             images[0][0], images[i][0], debug=False, scale_factor=3)
         print(stats)
+        plt.imshow(stats["roi"], cmap="gray"), plt.show()
