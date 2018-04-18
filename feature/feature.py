@@ -1,8 +1,13 @@
 #
 # feature.py
 #
-# feature_tracker.py
-# feature identification based tracker
+# SIFT-FLANN based object identifier and classifier
+# Written by Tianshu Huang for cv-inventory
+#
+# Functions
+# ---------
+# matches_plot: helper function to plot debug stats
+# find_match: recursive function to find matches
 #
 
 from cv_img import load_weighted
@@ -11,6 +16,7 @@ from matplotlib import pyplot as plt
 import kernel_ops
 from discrete import gaussian_convolve, weighted_bin
 from kmeans import kmeans
+from t_color import color
 
 
 # -----------------------------------------------------------------------------
@@ -142,35 +148,59 @@ def find_match(target, scene, **kwargs):
 #
 # -----------------------------------------------------------------------------
 # 'python feature.py' to run tests
-if(__name__ == "__main__"):
 
+# Classification test
+def test_classify():
     target_1 = "reference/scene-wire/tx0.5.jpg"
-    target_2 = "reference/scene-nano/tx0.25.jpg"
+    roi_1 = "reference/scene-wire/rx0.125.jpg"
+
+    images = load_weighted([target_1, roi_1], 1)
+    print(find_match(images[0][0], images[1][0], debug=True, iteration=1))
+
+
+# Search test
+def test_search(target, index):
     scene_1 = "reference/scene-wire/wide.jpg"
     scene_2 = "reference/scene-nano/wide.jpg"
 
     messages = [[True, True], [False, True]]
-    true_msg = "TEST: Object in scene, should show a high confidence"
-    false_msg = "TEST: Object not in scene, should show a low confidence"
+    true_msg = (
+        color.bgreen +
+        "TEST: Object in scene, should show a high confidence" +
+        color.end)
+    false_msg = (
+        color.bred +
+        "TEST: Object not in scene, should show a low confidence" +
+        color.end)
 
-    images = load_weighted([target_1, scene_1, scene_2], 1)
+    images = load_weighted([target, scene_1, scene_2], 1)
     for i in range(1, len(images)):
-        if(messages[0][i - 1]):
+        if(messages[index][i - 1]):
             print(true_msg)
         else:
             print(false_msg)
         stats = find_match(
-            images[0][0], images[i][0], debug=False, scale_factor=3)
+            images[0][0], images[i][0], debug=True, scale_factor=3)
         print(stats)
         plt.imshow(stats["roi"], cmap="gray"), plt.show()
 
-    images = load_weighted([target_2, scene_1, scene_2], 1)
-    for i in range(1, len(images)):
-        if(messages[1][i - 1]):
-            print(true_msg)
-        else:
-            print(false_msg)
-        stats = find_match(
-            images[0][0], images[i][0], debug=False, scale_factor=3)
-        print(stats)
-        plt.imshow(stats["roi"], cmap="gray"), plt.show()
+
+# Run tests
+if(__name__ == "__main__"):
+
+    import sys
+
+    if(len(sys.argv) <= 1):
+        print(color.bblue + "All imports passed" + color.end)
+
+    # ROI classification test
+    if(len(sys.argv) > 1 and sys.argv[1] == "classify"):
+        test_classify()
+
+    # Multi-pass find in scene
+    if(len(sys.argv) > 1 and sys.argv[1] == "search"):
+        target_1 = "reference/scene-wire/tx0.5.jpg"
+        target_2 = "reference/scene-nano/tx0.25.jpg"
+
+        test_search(target_1, 0)
+        test_search(target_2, 1)
