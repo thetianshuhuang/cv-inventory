@@ -1,6 +1,15 @@
 # cv-inventory
 Computer Vision based Inventory Management System
 
+## Dependencies
+- Python 3
+- Opencv 3.4 or greater with opencv_contrib extra modules
+- Numpy, scipy, matplotlib
+- Django, v2.0 or greater
+- Pillow (Python Imaging Library)
+- python-Levenshtein (Levenshtein distance for database searching)
+
+
 ## Feature
 The algorithm for feature detection consists of two parts; the first pass identifies possible locations of the target object; the second pass checks each location to determine a confidence value.
 
