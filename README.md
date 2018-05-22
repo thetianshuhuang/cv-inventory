@@ -4,6 +4,15 @@ Computer Vision based Inventory Management System
 ## Feature
 The algorithm for feature detection consists of two parts; the first pass identifies possible locations of the target object; the second pass checks each location to determine a confidence value.
 
+### Feature
+The feature detection system is located in cv_inventory/inventory/feature. To run tests, use one of
+```
+python feature.py classify
+python feature.py search
+python feature.py search clean
+```
+
+
 ### Image matching
 1. Use SIFT, then FLANN, to obtain matches. Express the confidence as
 ```

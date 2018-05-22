@@ -159,7 +159,7 @@ def test_classify():
 
 
 # Search test
-def test_search(target, index):
+def test_search(target, index, debug):
     scene_1 = "reference/scene-wire/wide.jpg"
     scene_2 = "reference/scene-nano/wide.jpg"
 
@@ -180,9 +180,10 @@ def test_search(target, index):
         else:
             print(false_msg)
         stats = find_match(
-            images[0][0], images[i][0], debug=True, scale_factor=3)
+            images[0][0], images[i][0], debug=debug, scale_factor=3)
         print(stats)
-        plt.imshow(stats["roi"], cmap="gray"), plt.show()
+        if(debug):
+            plt.imshow(stats["roi"], cmap="gray"), plt.show()
 
 
 # Run tests
@@ -190,6 +191,7 @@ if(__name__ == "__main__"):
 
     import sys
 
+    # Check dependencies
     if(len(sys.argv) <= 1):
         print(color.bblue + "All imports passed" + color.end)
 
@@ -202,5 +204,9 @@ if(__name__ == "__main__"):
         target_1 = "reference/scene-wire/tx0.5.jpg"
         target_2 = "reference/scene-nano/tx0.25.jpg"
 
-        test_search(target_1, 0)
-        test_search(target_2, 1)
+        if(len(sys.argv) > 2 and sys.argv[2] == "clean"):
+            test_search(target_1, 0, False)
+            test_search(target_2, 1, False)
+        else:
+            test_search(target_1, 0, True)
+            test_search(target_2, 1, True)

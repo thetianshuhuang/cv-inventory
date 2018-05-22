@@ -34,7 +34,7 @@ def knn_plot(img_target, kp_target, img_scene, kp_scene, matches, max_ratio):
     """
 
     # Need to draw only good matches, so create a mask
-    matchesMask = [[0, 0] for i in xrange(len(matches))]
+    matchesMask = [[0, 0] for i in range(len(matches))]
     for i, (best, second) in enumerate(matches):
         # Mirror the Ratio Test
         if(best.distance < max_ratio * second.distance):
